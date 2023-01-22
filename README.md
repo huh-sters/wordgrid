@@ -41,3 +41,9 @@ From the terminal in the projects folder
 
 `pdm run wordgrid`
 
+TODO
+====
+
+Work out how to generate the seed letter and location based on the current date. This changes this to be a daily
+puzzle where lots of people can attempt to get the highest score for a day based on the same letter/location
+as everyone else.

@@ -27,6 +27,7 @@ def calculate_seed():
     """
     Using the current date, calculate the letter and coordinates
     """
+    # TODO: Figure this part out
     # year, month, day, _, _, _, _ = datetime.today()
 
     # weekday = datetime.today().weekday()
