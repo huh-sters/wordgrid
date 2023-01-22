@@ -6,6 +6,8 @@ from string import ascii_uppercase
 from random import choice, randint
 from typing import Tuple, List
 from zipfile import ZipFile
+from datetime import datetime
+import math
 """
 Word grid game
 """
@@ -19,6 +21,31 @@ FILLER = "."
 
 class InvalidWordList(Exception):
     pass
+
+
+def calculate_seed():
+    """
+    Using the current date, calculate the letter and coordinates
+    """
+    # year, month, day, _, _, _, _ = datetime.today()
+
+    # weekday = datetime.today().weekday()
+    # quarter = (datetime.today().month - 1) // 3
+    # def rotate_right(value: str, count: int) -> str:
+    #     return value[-(count % 26):] + value[:-(count % 26)]
+
+    # Rotate the upper case characters by X value
+    # day = int(datetime.today().strftime("%j"))
+    # letter_index = int(datetime.today().strftime("%V")) // 2  # Index choice
+    # alphabet = rotate_right(ascii_uppercase, int(math.pow(day, letter_index)))
+    # Number from 1-26 (5 bits)
+    # Grid location from 0-9 for x and y
+    # 1
+    # 68421
+    # -----
+    # 11010
+
+    return (choice(ascii_uppercase), (randint(0, GRID_WIDTH - 1), randint(0, GRID_HEIGHT - 1)))
 
 
 def load_dictionary():
@@ -106,28 +133,30 @@ def calculate_score(wordlist: List[Tuple[str, str]]) -> int:
 
 
 def instructions():
-    click.echo(""")
+    click.secho("""
 ██     ██  ██████  ██████  ██████   ██████  ██████  ██ ██████  
 ██     ██ ██    ██ ██   ██ ██   ██ ██       ██   ██ ██ ██   ██ 
 ██  █  ██ ██    ██ ██████  ██   ██ ██   ███ ██████  ██ ██   ██ 
 ██ ███ ██ ██    ██ ██   ██ ██   ██ ██    ██ ██   ██ ██ ██   ██ 
  ███ ███   ██████  ██   ██ ██████   ██████  ██   ██ ██ ██████  
- """)
+ """, fg="blue")
     click.echo("Fill the grid with words. One point per letter in each word.")
-    click.echo("Each word MUST:")
+    click.echo("")
+    click.secho("Each word MUST:", fg="green")
     click.echo("* Start with the last letter of the previous word")
     click.echo("* Be in the dictionary")
     click.echo("* Fit on the grid")
     click.echo("* Cannot clash with other letters already on the grid")
     click.echo("* Not repeat.")
     click.echo("")
-    click.echo("Here's what you can do:")
+    click.secho("Here's what you can do:", fg="green")
     click.echo("* First letter is chosen at random in a random location on the grid")
     click.echo("* Words can go North, South, East or West from the starting letter")
     click.echo("* Words can overlap in any direction")
+    click.echo("")
 
 
-def render_grid(seed: Tuple[str, Tuple[int, int]], wordlist: List[Tuple[str, str]]):
+def render_grid(seed: Tuple[str, Tuple[int, int]], wordlist: List[Tuple[str, str]]) -> None:
     """
     Render the wordlist and seed letter
     """
@@ -153,11 +182,26 @@ def render_grid(seed: Tuple[str, Tuple[int, int]], wordlist: List[Tuple[str, str
                 elif word[1] == "W":
                     x -= 1
 
-    for row in grid:
-        for col in row:
-            click.echo(f"{col}", nl=False)
+    for row_index, row in enumerate(grid):
+        for col_index, col in enumerate(row):
+            if row_index == y and col_index == x:
+                click.secho(f"{col}", nl=False, fg="blue")
+            elif row_index == seed[1][1] and col_index == seed[1][0]:
+                click.secho(f"{col}", nl=False, fg="green")
+            else:
+                click.echo(f"{col}", nl=False)
+
         click.echo("")
 
+    click.echo("")
+
+def render_wordlist(wordlist: List[Tuple[str, str]]) -> None:
+    foreground = "white"
+    for word in wordlist:
+        click.secho(f"{word[0]} ({len(word[0])}) ", nl=False, fg=foreground)
+        foreground = "white" if foreground == "cyan" else "cyan"
+
+    click.echo("")
 
 @click.command()
 def main():
@@ -175,29 +219,43 @@ def main():
         * No repeats
     """
     global DICTIONARY
-    seed = (choice(ascii_uppercase), (randint(0, GRID_WIDTH - 1), randint(0, GRID_HEIGHT - 1)))
+    # From the date, get the following three values
+    # A number between 1 and 26
+    # A number between 0 and GRID_WIDTH
+    # A number between 0 and GRID_HEIGHT
+    seed = calculate_seed()
     wordlist = []
     load_dictionary()
     instructions()
     while True:
         try:
             render_grid(seed, wordlist)
+            render_wordlist(wordlist)
             # Grab some input and validate
             last_letter = seed[0]
             if len(wordlist) > 0:
                 last_letter = wordlist[-1][0][-1]
 
-            new_word = input(f"(score: {calculate_score(wordlist)}) Enter a word (Q=QUIT): {last_letter}").upper()
+            new_word = ""
+            while new_word == "":
+                new_word = input(f"(score: {calculate_score(wordlist)}) Enter a word (Q=QUIT): {last_letter}").upper()
+
             if new_word == "Q":
                 break
             new_word = f"{last_letter}{new_word}"
-            direction = input("Enter direction (NSEW): ").upper()
+            click.echo("Enter direction (NSEW): ", nl=False)
+            direction = click.getchar().upper()
+            click.echo("")
+            click.echo("")
+            if direction not in ["N", "S", "E", "W"]:
+                click.secho(f"{direction} is not a valid direction", fg='red')
+                continue
             temp_wordlist = wordlist.copy()
             temp_wordlist.append((new_word, direction))
             validate(seed, temp_wordlist)
             wordlist = temp_wordlist
         except InvalidWordList as iwl:
-            click.echo(iwl)
+            click.secho(iwl, fg='red')
 
 if __name__ == "__main__":
     main()
