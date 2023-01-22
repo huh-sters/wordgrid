@@ -3,6 +3,7 @@
 [tool.pdm.scripts]
 build = "pyinstaller --onefile --exclude-module _bootlocale --add-data 'english_dic.zip:.' wordgrid.py"
 clean = "rm -rf __pycache__ && rm -rf build && rm -rf dist && rm -rf wordgrid.spec"
+wordgrid = "python wordgrid.py"
 
 [project]
 name = "WordGrid"

@@ -33,3 +33,11 @@ To build the single file distribution
 `pdm run build`
 
 ELF lives in the `dist` folder.
+
+Running
+=======
+
+From the terminal in the projects folder
+
+`pdm run wordgrid`
+
