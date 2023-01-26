@@ -16,6 +16,7 @@ class Settings:
     grid_width: int = 10
     grid_height: int = 10
     dictionary: List[str] = []
+    hints_remaining: int = 3
     filler: str = "."
     _color: bool = None
 
@@ -427,6 +428,7 @@ def show_hint(
         foreground = "white" if foreground == "cyan" else "cyan"
 
     print("")
+    Settings.hints_remaining -= 1
 
 
 def main() -> None:
@@ -469,13 +471,19 @@ def main() -> None:
             while new_word == "":
                 new_word = input(
                     f"(score: {calculate_score(wordlist)}) "
-                    f"Enter a word (Q=QUIT, !=HINT): {last_letter}"
+                    "Enter a word (Q=QUIT, !=HINT "
+                    f"{Settings.hints_remaining} hints remaining): "
+                    f"{last_letter}"
                 ).upper()
 
             if new_word == "Q":
                 break
+
             if new_word == "!":
-                show_hint(seed, wordlist)
+                if Settings.hints_remaining == 0:
+                    print_color("No more hints remaining!", color="red")
+                else:
+                    show_hint(seed, wordlist)
                 continue
 
             new_word = f"{last_letter}{new_word}"
