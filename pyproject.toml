@@ -12,7 +12,7 @@ dev = [
 ]
 [project]
 name = "WordGrid"
-version = "1.0.3"
+version = "1.0.4"
 description = "Word game for the terminal"
 authors = [
     {name = "Chris Read", email = "centurix@gmail.com"},
