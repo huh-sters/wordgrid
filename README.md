@@ -16,10 +16,19 @@ Here's what you can do:
 * Words can go North, South, East or West from the starting letter
 * Words can overlap in any direction
 
+The starting letter and its position will change once a day.
+
 Installing
 ==========
 
-Linux ELF only at this stage.
+Linux ELF only at this stage. The ELF can be found in the release section of the repository.
+
+You will need to enable the execute attribute on the file. Then:
+
+`./wordgrid`
+
+Development
+===========
 
 To setup for development you will need Python 3.10 and a copy of PDM installed
 
@@ -44,6 +53,4 @@ From the terminal in the projects folder
 TODO
 ====
 
-Work out how to generate the seed letter and location based on the current date. This changes this to be a daily
-puzzle where lots of people can attempt to get the highest score for a day based on the same letter/location
-as everyone else.
+Public score posting. This is
