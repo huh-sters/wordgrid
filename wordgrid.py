@@ -1,29 +1,85 @@
 #!/usr/bin/env python3
-import click
+import sys
 import os
 import io
 from string import ascii_uppercase
 from random import choice, randint
 from typing import Tuple, List
 from zipfile import ZipFile
-from datetime import datetime
-import math
+# from datetime import datetime
+# import math
 """
 Word grid game
 """
 
-GRID_WIDTH = 10
-GRID_HEIGHT = 10
+class Settings:
+    grid_width: int = 10
+    grid_height: int = 10
+    dictionary: List[str]
+    filler: str = "."
+    _color: bool = None
 
-DICTIONARY = []
+    @classmethod
+    def has_color(cls) -> bool:
+        """
+        Check for terminal colors, we have to be at least in a TTY and any of:
+        * Not windows
+        * ANSICON or WT_SESSION present
+        * VS Code terminal
+        * Colorama installed
+        """
+        if cls._color:
+            return cls._color
 
-FILLER = "."
+        cls._color = False
 
-class InvalidWordList(Exception):
+        if hasattr(sys.stdout, "isatty") and sys.stdout.isatty():
+            if sys.platform != "win32":
+                cls._color = True
+
+            if "ANSICON" in os.environ or "WT_SESSION" in os.environ:
+                cls._color = True
+
+            if os.getenv("TERM_PROGRAM") == "vscode":
+                cls._color = True
+
+            try:
+                import colorama
+                cls._color = True
+            except (ImportError, OSError):
+                pass
+
+        return cls._color
+
+    @classmethod
+    def load_dictionary(cls) -> None:
+        mod_path = os.path.dirname(os.path.abspath(__file__))
+        with ZipFile(os.path.join(mod_path, "english_dic.zip")) as dic_zip:
+            with io.TextIOWrapper(dic_zip.open("english_dic.txt"), encoding="utf-8") as dic_handle:
+                cls.dictionary = dic_handle.read().splitlines()
+
+def print_color(text: str, color: str, end="\n") -> str:
+    if not Settings.has_color():
+        print(text, end=end)
+        return
+
+    ansi_colors = {
+        "blue": "\033[94m",
+        "cyan": "\033[96m",
+        "green": "\033[92m",
+        "white": "\033[90m",
+        "red": "\033[91m"
+    }
+
+    start_ansi = ansi_colors.get(color, '\033[90m')
+    end_ansi = "\033[0m"
+    print(f"{start_ansi}{text}{end_ansi}", end=end)
+
+class InvalidWord(Exception):
     pass
 
 
-def calculate_seed():
+def calculate_seed() -> Tuple[str, Tuple[int, int]]:
     """
     Using the current date, calculate the letter and coordinates
     """
@@ -46,15 +102,9 @@ def calculate_seed():
     # -----
     # 11010
 
-    return (choice(ascii_uppercase), (randint(0, GRID_WIDTH - 1), randint(0, GRID_HEIGHT - 1)))
+    return (choice(ascii_uppercase), (randint(0, Settings.grid_width - 1), randint(0, Settings.grid_height - 1)))
 
 
-def load_dictionary():
-    global DICTIONARY
-    mod_path = os.path.dirname(os.path.abspath(__file__))
-    with ZipFile(os.path.join(mod_path, "english_dic.zip")) as dic_zip:
-        with io.TextIOWrapper(dic_zip.open("english_dic.txt"), encoding="utf-8") as dic_handle:
-            DICTIONARY = dic_handle.read().splitlines()
 
 
 def validate(seed: Tuple[str, Tuple[int, int]], wordlist: List[Tuple[str, str]]) -> bool:
@@ -70,10 +120,10 @@ def validate(seed: Tuple[str, Tuple[int, int]], wordlist: List[Tuple[str, str]])
     last_letter = seed[0]  # Seed letter
     x, y = seed[1]
     for word in wordlist:
-        if word[0] not in DICTIONARY:
-            raise InvalidWordList(f"{word[0]} is not in the dictionary")
+        if word[0] not in Settings.dictionary:
+            raise InvalidWord(f"{word[0]} is not in the dictionary")
         if word[0][0] != last_letter:
-            raise InvalidWordList(f"{word[0]} does not start with {last_letter}")
+            raise InvalidWord(f"{word[0]} does not start with {last_letter}")
         last_letter = word[0][-1]
         if word[1] == "N":
             y -= len(word[0]) - 1
@@ -83,19 +133,19 @@ def validate(seed: Tuple[str, Tuple[int, int]], wordlist: List[Tuple[str, str]])
             x += len(word[0]) - 1
         elif word[1] == "W":
             x -= len(word[0]) - 1
-        if not 0 <= x <= GRID_WIDTH - 1:
-            raise InvalidWordList(f"{word[0]} falls outside of the x grid")
-        if not 0 <= y <= GRID_HEIGHT - 1:
-            raise InvalidWordList(f"{word[0]} falls outside of the y grid")
+        if not 0 <= x <= Settings.grid_width - 1:
+            raise InvalidWord(f"{word[0]} falls outside of the x grid")
+        if not 0 <= y <= Settings.grid_height - 1:
+            raise InvalidWord(f"{word[0]} falls outside of the y grid")
 
     # No repeat words
     repeatwordlist = [word[0] for word in wordlist]
     if len(wordlist) != len(set(repeatwordlist)):
-        raise InvalidWordList(f"Repeat word found")
+        raise InvalidWord(f"Word already used")
 
     # Check for clashing letters
     # Initialise the grid
-    grid = [ [FILLER] * GRID_WIDTH for _ in range(GRID_HEIGHT)]
+    grid = [ [Settings.filler] * Settings.grid_width for _ in range(Settings.grid_height)]
 
     # Set the seed in case there are no words in the list
     grid[seed[1][1]][seed[1][0]] = seed[0]
@@ -104,8 +154,8 @@ def validate(seed: Tuple[str, Tuple[int, int]], wordlist: List[Tuple[str, str]])
     x, y = seed[1]
     for word in wordlist:
         for index, letter in enumerate(word[0]):
-            if index > 0 and grid[y][x] not in [FILLER, letter]:  # Clashing letter
-                raise InvalidWordList(f"{word[0]} clashes with another word")
+            if index > 0 and grid[y][x] not in [Settings.filler, letter]:  # Clashing letter
+                raise InvalidWord(f"{word[0]} clashes with another word")
 
             grid[y][x] = letter
             # Only move if we're not at the last letter
@@ -133,28 +183,28 @@ def calculate_score(wordlist: List[Tuple[str, str]]) -> int:
     return score
 
 
-def instructions():
-    click.secho("""
+def instructions() -> None:
+    print_color("""
 ██     ██  ██████  ██████  ██████   ██████  ██████  ██ ██████  
 ██     ██ ██    ██ ██   ██ ██   ██ ██       ██   ██ ██ ██   ██ 
 ██  █  ██ ██    ██ ██████  ██   ██ ██   ███ ██████  ██ ██   ██ 
 ██ ███ ██ ██    ██ ██   ██ ██   ██ ██    ██ ██   ██ ██ ██   ██ 
  ███ ███   ██████  ██   ██ ██████   ██████  ██   ██ ██ ██████  
- """, fg="blue")
-    click.echo("Fill the grid with words. One point per letter in each word.")
-    click.echo("")
-    click.secho("Each word MUST:", fg="green")
-    click.echo("* Start with the last letter of the previous word")
-    click.echo("* Be in the dictionary")
-    click.echo("* Fit on the grid")
-    click.echo("* Cannot clash with other letters already on the grid")
-    click.echo("* Not repeat.")
-    click.echo("")
-    click.secho("Here's what you can do:", fg="green")
-    click.echo("* First letter is chosen at random in a random location on the grid")
-    click.echo("* Words can go North, South, East or West from the starting letter")
-    click.echo("* Words can overlap in any direction")
-    click.echo("")
+ """, color="blue")
+    print("Fill the grid with words. One point per letter in each word.")
+    print("")
+    print_color("Each word MUST:", color="green")
+    print("* Start with the last letter of the previous word")
+    print("* Be in the dictionary")
+    print("* Fit on the grid")
+    print("* Cannot clash with other letters already on the grid")
+    print("* Not repeat.")
+    print("")
+    print_color("Here's what you can do:", color="green")
+    print("* First letter is chosen at random in a random location on the grid")
+    print("* Words can go North, South, East or West from the starting letter")
+    print("* Words can overlap in any direction")
+    print("")
 
 
 def render_grid(seed: Tuple[str, Tuple[int, int]], wordlist: List[Tuple[str, str]]) -> None:
@@ -162,7 +212,7 @@ def render_grid(seed: Tuple[str, Tuple[int, int]], wordlist: List[Tuple[str, str
     Render the wordlist and seed letter
     """
     # Initialise the grid
-    grid = [ [FILLER] * GRID_WIDTH for _ in range(GRID_HEIGHT)]
+    grid = [ [Settings.filler] * Settings.grid_width for _ in range(Settings.grid_height)]
 
     # Set the seed in case there are no words in the list
     grid[seed[1][1]][seed[1][0]] = seed[0]
@@ -186,25 +236,24 @@ def render_grid(seed: Tuple[str, Tuple[int, int]], wordlist: List[Tuple[str, str
     for row_index, row in enumerate(grid):
         for col_index, col in enumerate(row):
             if row_index == y and col_index == x:
-                click.secho(f"{col}", nl=False, fg="blue")
+                print_color(col, color="blue", end="")
             elif row_index == seed[1][1] and col_index == seed[1][0]:
-                click.secho(f"{col}", nl=False, fg="green")
+                print_color(col, color="green", end="")
             else:
-                click.echo(f"{col}", nl=False)
+                print(f"{col}", end="")
 
-        click.echo("")
+        print("")
 
-    click.echo("")
+    print("")
 
 def render_wordlist(wordlist: List[Tuple[str, str]]) -> None:
     foreground = "white"
     for word in wordlist:
-        click.secho(f"{word[0]} ({len(word[0])}) ", nl=False, fg=foreground)
+        print_color(f"{word[0]} ({len(word[0])}) ", color=foreground, end="")
         foreground = "white" if foreground == "cyan" else "cyan"
 
-    click.echo("")
+    print("")
 
-@click.command()
 def main():
     """
     A word grid game
@@ -219,14 +268,13 @@ def main():
         * Words can overlap other words
         * No repeats
     """
-    global DICTIONARY
     # From the date, get the following three values
     # A number between 1 and 26
     # A number between 0 and GRID_WIDTH
     # A number between 0 and GRID_HEIGHT
     seed = calculate_seed()
     wordlist = []
-    load_dictionary()
+    Settings.load_dictionary()
     instructions()
     while True:
         try:
@@ -244,19 +292,18 @@ def main():
             if new_word == "Q":
                 break
             new_word = f"{last_letter}{new_word}"
-            click.echo("Enter direction (NSEW): ", nl=False)
-            direction = click.getchar().upper()
-            click.echo("")
-            click.echo("")
+            direction = input("Enter direction (NSEW): ").upper()
+            print("")
+            print("")
             if direction not in ["N", "S", "E", "W"]:
-                click.secho(f"{direction} is not a valid direction", fg='red')
+                print_color(f"{direction} is not a valid direction", "red")
                 continue
             temp_wordlist = wordlist.copy()
             temp_wordlist.append((new_word, direction))
             validate(seed, temp_wordlist)
             wordlist = temp_wordlist
-        except InvalidWordList as iwl:
-            click.secho(iwl, fg='red')
+        except InvalidWord as iwl:
+            print_color(iwl, "red")
 
 if __name__ == "__main__":
     main()
