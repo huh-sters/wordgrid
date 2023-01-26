@@ -142,7 +142,6 @@ def calculate_seed() -> Tuple[str, Tuple[int, int]]:
         (tuple, Tuple, int): The coordinates of the letter
     """
     seed((date.today() - date(1970, 1, 1)).days)  # Seed it up
-    return ("A", (5, 5))
     return (
         choice(ascii_uppercase),
         (
