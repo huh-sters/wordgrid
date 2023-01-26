@@ -4,10 +4,15 @@
 build = "pyinstaller --onefile --exclude-module _bootlocale --add-data 'english_dic.zip:.' wordgrid.py"
 clean = "rm -rf __pycache__ && rm -rf build && rm -rf dist && rm -rf wordgrid.spec"
 wordgrid = "python wordgrid.py"
+lint = "flake8 ."
 
+[tool.pdm.dev-dependencies]
+dev = [
+    "flake8>=6.0.0",
+]
 [project]
 name = "WordGrid"
-version = "1.0.0"
+version = "1.0.3"
 description = "Word game for the terminal"
 authors = [
     {name = "Chris Read", email = "centurix@gmail.com"},
